@@ -5,6 +5,8 @@ import logging  # Logging for debug
 import re
 import random
 
+
+
 # Configure basic logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -180,4 +182,5 @@ async def on_message(message):
         logger.debug("API request failed, sending error message to Discord.")
         await message.channel.send("Man i'm too tired to think about it")
 
-client.run("MTEzNDI1MTUzOTg1MTEzMjk5OA.GSJh-I.opBy3bNCBPOKhzWTZ-FfWCPU0EaRzReV_WLaB0")
+def start_bot():
+    client.run("MTEzNDI1MTUzOTg1MTEzMjk5OA.GSJh-I.opBy3bNCBPOKhzWTZ-FfWCPU0EaRzReV_WLaB0")
