@@ -1,10 +1,10 @@
 [general]
 # Bot's allowed channels
-allowed_channels = ["⌨programming-electronics", "bot-test", "general", "ttrpg"]
+allowed_channels = ["⌨programming-electronics", "bot-test", "ttrpg"]
 
 # Bot aliases
 bot_aliases = ["bot", "brandon", "slay girlie", "Brandon"]
-
+indirect_bot_mention_channels = ["bot-test"]
 [api_keys]
 # API Keys for OpenWeatherMap and Google Generative AI
 owm_api_key = "bf5a07d6bd4fe5675868c6f6b309cf17"

@@ -18,6 +18,7 @@ config = toml.load('config.toml')
 # General configuration
 ALLOWED_CHANNELS = config['general']['allowed_channels']
 BOT_ALIASES = config['general']['bot_aliases']
+INDIRECT_BOT_MENTION_CHANNELS = config['general']['indirect_bot_mention_channels']
 EIGHT_BALL_ANSWERS = config['eight_ball_answers']['answers']
 
 # API Keys
@@ -69,6 +70,9 @@ async def on_message(message):
     elif message.channel.name in ALLOWED_CHANNELS:
         # If it's from an allowed channel, continue processing
         pass
+    elif message.channel.name in INDIRECT_BOT_MENTION_CHANNELS:
+        # If it's an indirect bot mention channel, continue processing
+        pass
     else:
         logger.debug(f"Channel '{message.channel.name}' is not allowed, ignoring.")
         return
@@ -78,7 +82,8 @@ async def on_message(message):
     indirect_bot_mention = any(alias in message.content.lower() for alias in BOT_ALIASES)
 
     # Bot should only respond if it's mentioned directly or if there's an indirect mention
-    if not bot_mentioned and not indirect_bot_mention:
+    if not bot_mentioned and not any(
+            re.search(r'\b' + re.escape(alias) + r'\b', message.content.lower()) for alias in BOT_ALIASES):
         logger.debug("Bot was not mentioned or no indirect mention in allowed channel, ignoring.")
         return
 
