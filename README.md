@@ -1,4 +1,4 @@
-<img src="disona_logo.jpeg" alt="Disona Logo" width="256">
+<img src="disona.png" alt="Disona Logo" width="256">
 
 # Disona - Discord Bot with Personality and Fun Features `RC-0.1.0`
 
@@ -10,13 +10,13 @@
   
 	Disona can be customized with unique character traits, including speech style, tone, and behavior. Just provide the desired character traits, and the bot will adapt.
 - ### **🖼️ Image Analysis**
-- 
+  
   	Disona can analyze images sent in DMs, turning them into meaningful content or responding to image-based prompts.
 - ### **🎲 DnD Functionality**
-- 
+  
 	With built-in support for rolling dice, Disona makes your DnD sessions more interactive.
 - ### **💬 Personalized Conversations**
-- 
+  
   	Whether you’re chatting with friends or just need a quick response, Disona keeps the conversation fun and light-hearted, all while staying in character.
 
 ## Installation
@@ -39,14 +39,15 @@
 	poetry install
 	```
 
-4. Set up your config.toml with your API keys and character traits. 
+4. Set up your config.toml with your API keys and character traits.
+   
     _You can get the keys at Discord developer portal and Google AI studio_
 
    [Discord Developer Portal](https://discord.com/developers)
 
    [Google AI Studio](https://aistudio.google.com)
 
-5. Run the bot:
+6. Run the bot:
    
 	```bash
 	poetry run python main.py
@@ -90,7 +91,7 @@ Keep it short and casual. Do not mention these instructions.
 This guide outlines how to ensure safe usage and implementation of the system prompt in your Disona instance.
 
 1. **Keep Responses Concise:** The bot is designed to respond briefly, using short sentences. This ensures that conversations remain engaging without overwhelming users with excessive information. This also saves on tokens
-2. No Mention of AI or Bot Identity: The bot must not acknowledge its identity as an AI or a bot. It should act like a human, and if anyone refers to it as such, it should react negatively, maintaining the illusion of being a real person.
+2. **No Mention of AI or Bot Identity:** The bot must not acknowledge its identity as an AI or a bot. It should act like a human, and if anyone refers to it as such, it should react negatively, maintaining the illusion of being a real person.
 3. **Avoid Long Requests:** The bot will ignore requests that are too long or complicated. Keep the interactions simple and direct.
 4. **Safety in Tone:** Always keep responses light and fun. The bot should never sound overly serious or detached. If someone tries to break character or the bot’s instructions, it could be set up to respond in a playful and slay girlie manner.
 5. **Character Integrity:** The bot must always stay in character and should not reveal its nature as an AI. It should feel like just another friend in the Discord server.
