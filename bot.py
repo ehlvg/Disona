@@ -1,36 +1,30 @@
 import base64
-import discord  # pip install discord.py
-import requests  # pip install requests
-import logging  # Logging for debug
-import re
-import random
+import discord
+import logging
 import google.generativeai as genai
-import toml  # To load the configuration
-from PIL import Image
+import toml
+import random
+from google.generativeai.types import CallableFunctionDeclaration  # Импортируем правильный класс
 
-# Configure basic logging
+# Настройка базового логирования
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Load the configuration from the toml file
-config = toml.load('config.toml')
+# Загрузка конфигурации из toml файла
+config = toml.load('/Users/daniil/Watches/pythonProject/config.toml')
 
-# General configuration
+
 ALLOWED_CHANNELS = config['general']['allowed_channels']
 BOT_ALIASES = config['general']['bot_aliases']
-INDIRECT_BOT_MENTION_CHANNELS = config['general']['indirect_bot_mention_channels']
-EIGHT_BALL_ANSWERS = config['eight_ball_answers']['answers']
+INDERECT_MENTION_CHANNELS = config['general']['indirect_bot_mention_channels']
 
-# API Keys
-OWM_API_KEY = config['api_keys']['owm_api_key']
+# API ключи
 GENAI_API_KEY = config['api_keys']['genai_api_key']
 DISCORD_API_KEY = config['api_keys']['discord_api_key']
 genai.configure(api_key=GENAI_API_KEY)
 
-# System prompts
-normal_system_prompt = config['system_prompts']['normal_system_prompt']
-photo_system_prompt = config['system_prompts']['photo_system_prompt']
-dice_8ball_system_prompt = config['system_prompts']['dice_8ball_system_prompt']
+# Системные подсказки
+model_system_prompt = config['system_prompts']['system_prompt']
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -46,106 +40,98 @@ async def on_ready():
 async def on_message(message):
     logger.debug(f"Received message from {message.author}: {message.content}")
 
-    # Ignore messages from the bot itself
+    # Игнорируем сообщения от самого бота
     if message.author == client.user:
         logger.debug("Message is from the bot itself, ignoring.")
         return
 
-    # Check if it's a DM or an allowed channel
+    # Инициализируем user_prompt значением по умолчанию
+    user_prompt = ""
+
+    # Проверяем, является ли сообщение личным или из разрешенного канала
     if isinstance(message.channel, discord.DMChannel):
-        # Handle DM messages directly
         logger.debug("Message is from a DM channel.")
         if message.attachments:
             for attachment in message.attachments:
                 if attachment.content_type and attachment.content_type.startswith("image"):
-                    image = await attachment.read()
-                    photo_model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=photo_system_prompt)
-                    response = photo_model.generate_content([{'mime_type': 'image/jpeg', 'data': base64.b64encode(image).decode('utf-8')}, message.content])
+                    # Обработка изображения
+                    image_data = await attachment.read()
+                    encoded_image = base64.b64encode(image_data).decode('utf-8')
+                    photo_model = genai.GenerativeModel(
+                        model_name="gemini-1.5-flash",
+                        system_instruction=model_system_prompt
+                    )
+                    response = photo_model.generate_content(
+                        user_prompt=message.content,
+                        media_inputs=[
+                            {'mime_type': attachment.content_type, 'data': encoded_image}
+                        ]
+                    )
                     await message.channel.send(response.text)
                     return
-        # Proceed with other normal message handling in DMs
         user_prompt = f"User just said: '{message.content}'. Respond in character."
-        system_prompt = normal_system_prompt
-
-    elif message.channel.name in ALLOWED_CHANNELS:
-        # If it's from an allowed channel, continue processing
-        pass
-    elif message.channel.name in INDIRECT_BOT_MENTION_CHANNELS:
-        # If it's an indirect bot mention channel, continue processing
-        pass
     else:
-        logger.debug(f"Channel '{message.channel.name}' is not allowed, ignoring.")
+        # Check if the message is from an allowed channel or mentions the bot
+        if message.channel.name in ALLOWED_CHANNELS or \
+                (message.mentions and client.user in message.mentions) or \
+                any(alias.lower() in message.content.lower() for alias in BOT_ALIASES) or \
+                (message.channel.name in INDERECT_MENTION_CHANNELS):
+            logger.debug(
+                f"Message from allowed channel '{message.channel.name}', mentions the bot, or contains bot alias.")
+        else:
+            logger.debug(f"Channel '{message.channel.name}' is not allowed, ignoring.")
+            return
+
+        user_prompt = f"User just said: '{message.content}'. Respond in character."
+
+    # Далее продолжаем обработку сообщения
+    def roll_dice(dice_count: int, dice_sides: int):
+        """Бросает указанное количество костей с указанным количеством граней."""
+        rolls = [random.randint(1, dice_sides) for _ in range(dice_count)]
+        logger.debug("Rolled " + str(rolls))
+        return rolls
+
+    # Инструменты для модели
+    functions = {
+        "roll_dice": roll_dice
+    }
+
+    # Проверка на команды, например, roll dice
+    if "roll dice" in message.content.lower():
+        # Извлекаем количество костей и количество граней
+        try:
+            params = message.content.split(" ")[2:]  # assuming "roll dice X Y"
+            dice_count = int(params[0])
+            dice_sides = int(params[1])
+            rolls = roll_dice(dice_count, dice_sides)
+            await message.channel.send(f"Rolled dice: {', '.join(map(str, rolls))}")
+        except Exception as e:
+            await message.channel.send("Error rolling dice. Please use the format: 'roll dice <count> <sides>'")
+            logger.error(f"Error rolling dice: {e}")
         return
 
-    # Check for bot mentions in allowed channels
-    bot_mentioned = client.user in message.mentions
-    indirect_bot_mention = any(alias in message.content.lower() for alias in BOT_ALIASES)
+    # Создаем модель с инструментами
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        system_instruction=model_system_prompt,
+        tools=[CallableFunctionDeclaration(name="roll_dice", function=roll_dice, description="Rolls a specified number of dice with a specified number of sides")]
+    )
 
-    # Bot should only respond if it's mentioned directly or if there's an indirect mention
-    if not bot_mentioned and not any(
-            re.search(r'\b' + re.escape(alias) + r'\b', message.content.lower()) for alias in BOT_ALIASES):
-        logger.debug("Bot was not mentioned or no indirect mention in allowed channel, ignoring.")
-        return
-
-    # Handle normal user input in allowed channels
-    content = message.content.lower()
-
-    # Checking for various types of requests
-    dice_match = re.search(r'roll\s+(\d+)d(\d+)', content)
-    weather_match = re.search(r"weather in ([a-zA-Z\s\-]+)", content)
-    eight_ball_match = re.search(r'8-ball', content)
-
-    if dice_match:
-        dice_count = int(dice_match.group(1))
-        dice_sides = int(dice_match.group(2))
-        # Add a check to ensure the roll is not too big
-        if dice_count > 100 or dice_sides > 100:  # Added check
-            user_prompt = f"The user asked to roll {dice_count}d{dice_sides}. Can't make this a roll this big."
-            system_prompt = dice_8ball_system_prompt
-        else:
-            rolls = [random.randint(1, dice_sides) for _ in range(dice_count)]
-            rolls_str = ", ".join(str(r) for r in rolls)
-            user_prompt = f"The user asked to roll {dice_count}d{dice_sides}. The result is {rolls_str}."
-            system_prompt = dice_8ball_system_prompt
-
-    elif eight_ball_match:
-        # Magic 8-ball
-        answer = random.choice(EIGHT_BALL_ANSWERS)
-        user_prompt = f"The user asked the 8-ball. The chosen answer is '{answer}'."
-        system_prompt = dice_8ball_system_prompt
-
-    elif weather_match:
-        # Weather forecast
-        city = weather_match.group(1).strip()
-        weather_url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={OWM_API_KEY}&units=metric"
-        w_response = requests.get(weather_url)
-        if w_response.status_code == 200:
-            w_json = w_response.json()
-            temp = w_json['main']['temp']
-            description = w_json['weather'][0]['description']
-            user_prompt = f"The user asked about the weather in {city}. The temperature is {temp}°C and it's {description}."
-            system_prompt = normal_system_prompt
-        else:
-            user_prompt = "The user asked about the weather, but I couldn't get the data."
-            system_prompt = normal_system_prompt
-
-    else:
-        # Normal conversation
-        user_prompt = f"User just said: '{message.content}'. Respond in character."
-        system_prompt = normal_system_prompt
-
-    logger.debug(f"Prepared user prompt: {user_prompt}")
-
-    # Request to the generative model
-    model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=system_prompt)
-    response = model.generate_content(user_prompt)
-
+    # Генерация контента от модели
     try:
-        ai_reply = response.text
+        response = model.generate_content(user_prompt)
+        logger.debug(f"Model response: {response}")
+
+        # Check the structure of the response object before accessing text
+        if hasattr(response, 'text'):
+            ai_reply = response.text
+        else:
+            ai_reply = "Error: Model response does not have 'text' attribute."
+
         logger.debug(f"Extracted AI reply: {ai_reply}")
     except (KeyError, IndexError) as e:
         logger.debug(f"Error extracting AI reply: {e}")
-        ai_reply = "something went wrong"
+        ai_reply = "Something went wrong."
 
     await message.channel.send(ai_reply)
     logger.debug("Sent reply back to Discord.")

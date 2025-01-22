@@ -1,4 +1,4 @@
-from fuckity import bot
+import bot
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
     bot.start_bot()
